@@ -1,0 +1,101 @@
+Antes de iniciar, establecer el directorio de la sesión en la carpeta descargada del código --> Control+shift+H > Seleccionar la carpeta
+
+Primero se abren las librerías pertinentes (código para instalarlas al final del script)
+```{r}
+library(dplyr)
+library(stringr)
+library(writexl)
+library(readxl)
+library(tidyr)
+library(data.table)
+```
+Se abren las bases de datos (tanto el banco como la lista de nombres a analizar)
+```{r}
+Banco <- read_excel("Bancodenombres.xlsx")
+colnames(Banco)<- c("Nombres", "gender")
+Banco <- as.data.frame(Banco)
+SoloNombres<-Banco$Nombres
+SoloNombres <- as.data.frame(SoloNombres)
+colnames(SoloNombres)<- c("Nombres")
+NombresyApellidos <- read_excel("NombresyApellidos.xlsx")
+Resultado<-NombresyApellidos$Nombres
+Resultado <- as.data.frame(Resultado)
+```
+Se uniformiza la base de Nombres y Apellidos por sistematizar
+```{r}
+NombresyApellidos$Nombres <- toupper(NombresyApellidos$Nombres)
+NombresyApellidos[] <- lapply(NombresyApellidos, function(x) gsub("\\.", " ", x))
+NombresyApellidos[] <- lapply(NombresyApellidos, function(x) gsub("[0-9]", " ", x))
+NombresyApellidos$Nombres<-gsub(","," ",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub(";"," ",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("-"," ",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("_"," ",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("/"," ",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("*","",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub(":"," ",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Á","A",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("É","E",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Í","I",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ó","O",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ú","U",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ä","A",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ë","E",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ï","I",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ö","O",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ü","U",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("À","A",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("È","E",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ì","I",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ò","O",NombresyApellidos$Nombres)
+NombresyApellidos$Nombres<-gsub("Ù","U",NombresyApellidos$Nombres)
+```
+Ahora se desagregarán los nombres de la lista de nombres a analizar, considerando un espacio (" ") como separador. Es común que salga un error al correr este chunk --> Ignorarlo y correr los restantes
+```{r}
+NombresyApellidos <- NombresyApellidos %>%
+separate(Nombres, into = c("Nombre1", "Nombre2", "Nombre3", "Nombre4", "Nombre5", "Nombre6", "Nombre7", "Nombre8", "Nombre9", "Nombre10"), sep = " ", fill = "right")
+
+identificar_nombre <- function(NombresyApellidos, SoloNombres)
+palabras <- unlist(strsplit(NombresyApellidos, " "))
+NombresyApellidos <- NombresyApellidos %>%
+  mutate(Nombres = sapply(NombresyApellidos, identificar_nombre, SoloNombres = SoloNombres))
+```
+Se asigna la función de identificar género a partir de cada palabra desagregada
+```{r}
+identificar_genero <- function(fila, base_nombres) {
+  nombres <- c(fila["Nombre1"], fila["Nombre2"], fila["Nombre3"], fila["Nombre4"], fila["Nombre5"],fila["Nombre6"], fila["Nombre7"], fila["Nombre8"], fila["Nombre9"], fila["Nombre10"])
+nombres <- na.omit(nombres) 
+generos <- c()
+for (nombre in nombres) {
+genero <- base_nombres$gender[base_nombres$Nombres == nombre]
+if (length(genero) > 0) {
+generos <- c(generos, genero)
+}
+}
+if (length(generos) > 0) {
+genero_mas_frecuente <- names(sort(table(generos), decreasing = TRUE))[1]
+return(genero_mas_frecuente)
+}
+return(NA)  
+}
+```
+Se ejecuta el paso final :) Se asignará el género más frecuente encontrado por fila (para evitar que los nombres usados también como apellidos arrojen un resultado erróneo)
+```{r}
+NombresyApellidos$Género <- apply(NombresyApellidos[, c("Nombre1", "Nombre2", "Nombre3", "Nombre4", "Nombre5", "Nombre6", "Nombre7", "Nombre8", "Nombre9", "Nombre10")], 1, identificar_genero, base_nombres = Banco)
+```
+Se exporta la data obtenida
+```{r}
+Resultado$Género<-NombresyApellidos$Género
+write_xlsx(Resultado, path = "RESULTADO.xlsx")
+```
+
+Instalación de todas las librerías necesarias (primer paso)
+```{r}
+install.packages("dplyr")
+install.packages("string")
+install.packages("writexl")
+install.packages("readxl")
+install.packages("tidyr")
+install.packages("data.table")
+```
+
+
